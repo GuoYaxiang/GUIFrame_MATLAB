@@ -23,7 +23,7 @@ function varargout = GUIFrame(varargin)
 
 % Edit the above text to modify the response to help GUIFrame
 
-% Last Modified by GUIDE v2.5 13-Oct-2016 22:18:21
+% Last Modified by GUIDE v2.5 14-Oct-2016 15:21:11
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -81,10 +81,10 @@ function SinglePic_Callback(hObject, eventdata, handles)
 % handles    structure with handles and user data (see GUIDATA)
 h2 = [handles.Info2 handles.ResultDisp2 handles.FrameMode2 handles.SeriesMode2 handles.uipanel2 ...
       handles.TopFivePoints2 handles.TrajectoryEnable2 handles.ResultSave2 handles.SaveEnable2 ...
-      handles.MyFunction2 handles.MyPicture2 handles.InitTip];
+      handles.MyFunction2 handles.MyPicture2 handles.InitTip handles.Run2];
 set(h2,'Visible','off');
   
-h1 = [handles.TemChoose1 handles.PicChoose1 handles.FuncChoose1 handles.Info1];
+h1 = [handles.TemChoose1 handles.PicChoose1 handles.FuncChoose1 handles.Info1 handles.Run1 handles.CloseAll];
 set(h1,'Visible','on');
 
 
@@ -94,10 +94,10 @@ function SeriesPic_Callback(hObject, eventdata, handles)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
 h2 = [handles.Info2 handles.ResultDisp2 handles.FrameMode2 handles.SeriesMode2 handles.uipanel2 handles.TopFivePoints2 ...
-      handles.TrajectoryEnable2 handles.ResultSave2 handles.SaveEnable2 handles.MyFunction2 handles.MyPicture2];
+      handles.TrajectoryEnable2 handles.ResultSave2 handles.SaveEnable2 handles.MyFunction2 handles.MyPicture2 handles.Run2 handles.CloseAll];
 set(h2,'Visible','on');
   
-h1 = [handles.TemChoose1 handles.PicChoose1 handles.FuncChoose1 handles.Info1 handles.InitTip];
+h1 = [handles.TemChoose1 handles.PicChoose1 handles.FuncChoose1 handles.Info1 handles.InitTip handles.Run1];
 set(h1,'Visible','off');
 
 
@@ -187,8 +187,16 @@ function MyFunction2_Callback(hObject, eventdata, handles)
 % hObject    handle to MyFunction2 (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
-global mydir;
-set(handles.Info2,'String',[mydir,mydir]);
+[FuncName,FuncPath,flag] = uigetfile('*.m','选择使用的函数');
+if(flag ~= 0)
+%     addpath(genpath(FuncPath));
+    addpath(FuncPath);
+end
+global BaseFunc;
+BaseFunc = str2func(strrep(FuncName,'.m',''));
+functions(BaseFunc)
+% path                          %%%测试路径添加操作是否成功
+rmpath(FuncPath);             %%为了避免对其他工程造成影响，在实验结束后应该将函数路径全部移除
 
 % --- Executes on button press in MyPicture2.
 function MyPicture2_Callback(hObject, eventdata, handles)
@@ -240,7 +248,16 @@ function FuncChoose1_Callback(hObject, eventdata, handles)
 % hObject    handle to FuncChoose1 (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
-
+[FuncName,FuncPath,flag] = uigetfile('*.m','选择使用的函数');
+if(flag ~= 0)
+%     addpath(genpath(FuncPath));
+    addpath(FuncPath);
+end
+global BaseFunc;
+BaseFunc = str2func(strrep(FuncName,'.m',''));
+functions(BaseFunc)
+% path                          %%%测试路径添加操作是否成功
+rmpath(FuncPath);             %%为了避免对其他工程造成影响，在实验结束后应该将函数路径全部移除
 
 
 function Info1_Callback(hObject, eventdata, handles)
@@ -295,6 +312,27 @@ function Run1_Callback(hObject, eventdata, handles)
 % handles    structure with handles and user data (see GUIDATA)
 global ImgTemp;
 global ImgTar;
+global BaseFunc;
+if size(ImgTar,3)~=1
+    ImgTar = rgb2gray(ImgTar);
+end
+if size(ImgTemp,3)~=1
+    ImgTemp = rgb2gray(ImgTemp);
+end
+ResultArray = BaseFunc(ImgTar,ImgTemp);
+[max_c, imax] = max(ResultArray(:));                  %求计算结果中的最大值点
+[ypeak, xpeak] = ind2sub(size(ResultArray),imax(1));
+[temH,temW] = size(ImgTemp);
+m = fix(temH/2);
+n = fix(temW/2);
+resultInfo = ['行坐标',num2str(ypeak+m),'列坐标',num2str(xpeak+n),'响应值',num2str(max_c)];
+set(handles.Info1,'String',resultInfo);
+figure(1);
+title('匹配结果');
+imshow(ImgTar);
+hold on
+rectangle('Position',[xpeak,ypeak,m*2,n*2],'EdgeColor','r');     %用红色矩形框出目标物体
+hold off
 
 %%% 图像序列匹配时的运行函数
 % --- Executes on button press in Run2.
@@ -307,3 +345,92 @@ global SaveEnable;
 global VideoEnable;
 global TopFiveEnable;
 global TrajectoryEnable; 
+global BaseFunc;
+
+Run(mydir,BaseFunc,SaveEnable,VideoEnable,TrajectoryEnable,TopFiveEnable,handles);
+
+
+% --- Executes on button press in CloseAll.
+function CloseAll_Callback(hObject, eventdata, handles)
+% hObject    handle to CloseAll (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+clear all;
+close all;
+clc;
+close();
+
+function Run(mydir,BaseFunc,SaveEnable,VideoEnable,TrajectoryEnable,TopFiveEnable,handles)
+%%%该函数是针对序列图像的处理程序。调用选择的基本函数计算图片的相关值，然后显示跟踪结果，可以选择保存为单帧图或者视频。
+%   mydir       图片序列所在的目录
+%   BaseFunc    计算模板与图片之间的相关值
+%   SaveEnable  若为0则只显示结果，若为1则对结果进行保存
+%   VideoEnable 若为1则保存为视频文件
+%   TrajectoryEnable   若为1则在图片中显示目标运动的轨迹
+%   TopFiveEnable      若为1则在图中显示相关值最高的5个区域
+%%%%%%%%%%%%功能还可以更完善
+
+global SeriesStart;
+global SeriesEnd;
+SeriesStart = 1;
+SeriesEnd = 5;
+tempsize = [48 48];   %%指示模板的尺寸，宽*高
+I = imread([mydir,'\',num2str(SeriesStart),'.jpg']);  %%序列图像只支持jpg格式
+figure(1);imshow(I);hold on
+pt = ginput(1);r = round(pt(2));c = round(pt(1));   %%%获取模板中心
+crossLength=10;
+imgTemp = I(r-tempsize(2)/2:r+tempsize(2)/2,c-tempsize(1)/2:c+tempsize(1)/2,:);
+if size(imgTemp,3) ~= 1
+    imgTemp = rgb2gray(imgTemp);
+end
+
+if(VideoEnable == 1)
+    mov = VideoWriter('Tracking Result.avi');
+    mov.FrameRate = 15;
+    mov.Quality = 20;
+    open(mov);
+end
+if(TrajectoryEnable == 1)
+    rtp = zeros(1,SeriesEnd-SeriesStart+1);
+    ctp = zeros(1,SeriesEnd-SeriesStart+1);
+end
+
+for num=SeriesStart:SeriesEnd
+    imgTar = imread([mydir,'\',num2str(num),'.jpg']);
+    ResultArray = BaseFunc(imgTar,imgTemp);
+    
+    [max_c, imax] = max(abs(ResultArray(:)));                  %求相关系数的最大值点
+    [ypeak,xpeak] = ind2sub(size(ResultArray),imax(1));    
+    
+    r = ypeak+tempsize(2)/2;c = xpeak+tempsize(1)/2;
+    imgTar(r,c-crossLength:c-3,:)=255;imgTar(r,c+3:c+crossLength,:)=255;%左边框
+    imgTar(r-crossLength:r-3,c,:)=255;imgTar(r+3:r+crossLength,c,:)=255;%下边框
+    imgTar(r,c,:)=255;%画十字叉
+    imgTar(r+round(tempsize(1)/2),c-round(tempsize(2)/2):c+round(tempsize(2)/2),:)=255;
+    imgTar(r-round(tempsize(1)/2),c-round(tempsize(2)/2):c+round(tempsize(2)/2),:)=255;
+    imgTar(r-round(tempsize(1)/2):r+round(tempsize(1)/2),c-round(tempsize(2)/2),:)=255;
+    imgTar(r-round(tempsize(1)/2):r+round(tempsize(1)/2),c+round(tempsize(2)/2),:)=255;
+
+    %%%记录轨迹
+    if(TrajectoryEnable == 1)
+        rtp(num-SeriesStart+1) = r;
+        ctp(num-SeriesStart+1) = c;
+        imgTar=bitmapplot(rtp,ctp,imgTar,struct('LineWidth',1,'Color',[1 0 0 1]));    
+    end
+    
+    resultInfo = ['帧数',num2str(num),'行坐标',num2str(r),'列坐标',num2str(c),'响应值',num2str(max_c)];
+    set(handles.Info2,'String',resultInfo);
+    
+    figure(1);imshow(imgTar);
+    if(VideoEnable == 1)
+        writeVideo(mov,imgTar);
+    elseif(SaveEnable == 1)
+        savepath = ['result_',num2str(num),'.jpg'];
+        imwrite(imgTar,savepath);
+    end    
+end
+if(VideoEnable == 1)
+    close(mov);
+end    
+    
+    
