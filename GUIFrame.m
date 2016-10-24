@@ -80,7 +80,7 @@ function SinglePic_Callback(hObject, eventdata, handles)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
 h2 = [handles.Info2 handles.ResultDisp2 handles.FrameMode2 handles.SeriesMode2 handles.uipanel2 ...
-      handles.TopFivePoints2 handles.TrajectoryEnable2 handles.ResultSave2 handles.SaveEnable2 ...
+      handles.TrajectoryEnable2 handles.ResultSave2 handles.SaveEnable2 ...
       handles.MyFunction2 handles.MyPicture2 handles.InitTip handles.Run2];
 set(h2,'Visible','off');
   
@@ -93,8 +93,8 @@ function SeriesPic_Callback(hObject, eventdata, handles)
 % hObject    handle to SeriesPic (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
-h2 = [handles.Info2 handles.ResultDisp2 handles.FrameMode2 handles.SeriesMode2 handles.uipanel2 handles.TopFivePoints2 ...
-      handles.TrajectoryEnable2 handles.ResultSave2 handles.SaveEnable2 handles.MyFunction2 handles.MyPicture2 handles.Run2 handles.CloseAll];
+h2 = [handles.Info2 handles.ResultDisp2 handles.FrameMode2 handles.SeriesMode2 handles.uipanel2 handles.TrajectoryEnable2 ...
+      handles.ResultSave2 handles.SaveEnable2 handles.MyFunction2 handles.MyPicture2 handles.Run2 handles.CloseAll];
 set(h2,'Visible','on');
   
 h1 = [handles.TemChoose1 handles.PicChoose1 handles.FuncChoose1 handles.Info1 handles.InitTip handles.Run1];
@@ -168,18 +168,6 @@ function TrajectoryEnable2_Callback(hObject, eventdata, handles)
 global TrajectoryEnable; 
 TrajectoryEnable = get(hObject,'Value');
 set(handles.Info2,'String','轨迹显示开启');
-
-
-% --- Executes on button press in TopFivePoints2.
-function TopFivePoints2_Callback(hObject, eventdata, handles)
-% hObject    handle to TopFivePoints2 (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-
-% Hint: get(hObject,'Value') returns toggle state of TopFivePoints2
-global TopFiveEnable; 
-TopFiveEnable = get(hObject,'Value');
-set(handles.Info2,'String','备选点显示开启');
 
 
 % --- Executes on button press in MyFunction2.
@@ -343,11 +331,10 @@ function Run2_Callback(hObject, eventdata, handles)
 global mydir;
 global SaveEnable;
 global VideoEnable;
-global TopFiveEnable;
 global TrajectoryEnable; 
 global BaseFunc;
 
-Run(mydir,BaseFunc,SaveEnable,VideoEnable,TrajectoryEnable,TopFiveEnable,handles);
+Run(mydir,BaseFunc,SaveEnable,VideoEnable,TrajectoryEnable,handles);
 
 
 % --- Executes on button press in CloseAll.
@@ -360,16 +347,16 @@ close all;
 clc;
 close();
 
-function Run(mydir,BaseFunc,SaveEnable,VideoEnable,TrajectoryEnable,TopFiveEnable,handles)
+function Run(mydir,BaseFunc,SaveEnable,VideoEnable,TrajectoryEnable,handles)
 %%%该函数是针对序列图像的处理程序。调用选择的基本函数计算图片的相关值，然后显示跟踪结果，可以选择保存为单帧图或者视频。
 %   mydir       图片序列所在的目录
 %   BaseFunc    计算模板与图片之间的相关值
 %   SaveEnable  若为0则只显示结果，若为1则对结果进行保存
 %   VideoEnable 若为1则保存为视频文件
 %   TrajectoryEnable   若为1则在图片中显示目标运动的轨迹
-%   TopFiveEnable      若为1则在图中显示相关值最高的5个区域
 %%%%%%%%%%%%功能还可以更完善
 
+global PauseEnable;
 global SeriesStart;
 global SeriesEnd;
 SeriesStart = 1;
@@ -427,7 +414,11 @@ for num=SeriesStart:SeriesEnd
     elseif(SaveEnable == 1)
         savepath = ['result_',num2str(num),'.jpg'];
         imwrite(imgTar,savepath);
-    end    
+    end
+    
+    if(PauseEnable)
+        pause;
+    end
 end
 if(VideoEnable == 1)
     close(mov);
